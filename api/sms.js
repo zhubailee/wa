@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const { MessagingResponse } = require('twilio').twiml;
 const fetch = require('node-fetch');
+const cheerio = require('cheerio'); // npm install cheerio
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -12,7 +13,7 @@ app.post('/sms', async (req, res) => {
 
   try {
     if (message.toLowerCase().startsWith('/lirik')) {
-      const content = message.slice(6).trim(); // hapus '/lirik'
+      const content = message.slice(6).trim();
       if (!content.includes('-')) {
         twiml.message('Format salah!\nContoh: /lirik Coldplay - Yellow');
       } else {
@@ -30,13 +31,23 @@ app.post('/sms', async (req, res) => {
       if (!url.includes('tiktok.com')) {
         twiml.message('Link TikTok tidak valid.');
       } else {
-        // Ganti API TikTok downloader di bawah jika link mati
-        const apiURL = `https://api.tiklydown.me/api/download?url=${encodeURIComponent(url)}`;
-        const response = await fetch(apiURL);
-        const data = await response.json();
-        const videoUrl = data.video?.no_watermark;
+        const response = await fetch('https://snaptik.app/abc2', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({ url }),
+        });
 
-        twiml.message(videoUrl ? `Video tanpa watermark:\n${videoUrl}` : 'Gagal mengambil video TikTok.');
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        const downloadLink = $('a[href*="/download"]').first().attr('href');
+
+        if (downloadLink) {
+          twiml.message(`Video:\n${downloadLink}`);
+        } else {
+          twiml.message('Gagal mengambil video. Coba lagi atau gunakan link TikTok publik.');
+        }
       }
     }
 
