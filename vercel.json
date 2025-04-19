@@ -1,9 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "api/sms.js", "use": "@vercel/node" }
-  ],
-  "routes": [
-    { "src": "/sms", "dest": "api/sms.js" }
-  ]
+  "builds": [{ "src": "api/sms.js", "use": "@vercel/node" }],
+  "routes": [{ "src": "/sms", "dest": "api/sms.js" }]
 }
