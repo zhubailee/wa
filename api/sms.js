@@ -8,33 +8,48 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 app.post('/sms', async (req, res) => {
   const twiml = new MessagingResponse();
-  const message = req.body.Body || '';
+  const message = req.body.Body?.trim() || '';
 
   try {
-    if (!message.includes('-')) {
-      twiml.message('Format salah! Contoh: Coldplay - Yellow');
-      res.type('text/xml');
-      return res.send(twiml.toString());
+    if (message.toLowerCase().startsWith('/lirik')) {
+      const content = message.slice(6).trim(); // hapus '/lirik'
+      if (!content.includes('-')) {
+        twiml.message('Format salah!\nContoh: /lirik Coldplay - Yellow');
+      } else {
+        const [artist, title] = content.split('-').map(x => x.trim());
+        const apiURL = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
+        const response = await fetch(apiURL);
+        const data = await response.json();
+        const lyrics = data.lyrics ? data.lyrics.slice(0, 1599) : null;
+        twiml.message(lyrics || 'Lirik tidak ditemukan.');
+      }
     }
 
-    const [artist, title] = message.split('-').map(x => x.trim());
-    const apiURL = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
-    const response = await fetch(apiURL);
-    const data = await response.json();
+    else if (message.toLowerCase().startsWith('/tiktok')) {
+      const url = message.slice(7).trim();
+      if (!url.includes('tiktok.com')) {
+        twiml.message('Link TikTok tidak valid.');
+      } else {
+        // Ganti API TikTok downloader di bawah jika link mati
+        const apiURL = `https://api.tiklydown.me/api/download?url=${encodeURIComponent(url)}`;
+        const response = await fetch(apiURL);
+        const data = await response.json();
+        const videoUrl = data.video?.no_watermark;
 
-    if (data.lyrics) {
-      const lyrics = data.lyrics.length > 1599 ? data.lyrics.substring(0, 1599) : data.lyrics;
-      twiml.message(lyrics);
-    } else {
-      twiml.message('Lirik tidak ditemukan.');
+        twiml.message(videoUrl ? `Video tanpa watermark:\n${videoUrl}` : 'Gagal mengambil video TikTok.');
+      }
+    }
+
+    else {
+      twiml.message('Perintah tidak dikenali.\nContoh:\n/lirik Coldplay - Yellow\n/tiktok [link]');
     }
   } catch (err) {
     console.error('Error:', err);
-    twiml.message('Terjadi kesalahan saat mengambil lirik.');
+    twiml.message('Terjadi kesalahan.');
   }
 
   res.type('text/xml');
   res.send(twiml.toString());
 });
 
-app.listen(3000, () => console.log('Server berjalan di http://localhost:3000'));
+app.listen(3000, () => console.log('Server aktif di http://localhost:3000'));
