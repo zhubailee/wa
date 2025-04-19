@@ -6,19 +6,22 @@ module.exports = async (req, res) => {
     return res.status(405).send('Method Not Allowed');
   }
 
-  const body = req.body.Body || '';
+  let parsed = {};
+
+  // Handle body format dari Vercel (raw x-www-form-urlencoded)
+  if (typeof req.body === 'string') {
+    parsed = Object.fromEntries(new URLSearchParams(req.body));
+  } else {
+    parsed = req.body;
+  }
+
+  const body = parsed.Body || '';
   const twiml = new MessagingResponse();
 
   try {
-    // Validasi input
-    if (!body || !body.includes('-')) {
+    if (!body.includes('-')) {
       twiml.message('Format salah! Contoh: Coldplay - Yellow');
-      return res.send(twiml.toString());
-    }
-
-    if (!/^[a-zA-Z0-9\s\-]+$/.test(body)) {
-      twiml.message('Input mengandung karakter tidak valid.');
-      return res.send(twiml.toString());
+      return res.status(200).send(twiml.toString());
     }
 
     const [artist, title] = body.split('-').map(s => s.trim());
@@ -27,17 +30,17 @@ module.exports = async (req, res) => {
     const response = await fetch(url);
     const data = await response.json();
 
-    if (response.ok && data.lyrics) {
-      const lirik = data.lyrics.length > 1599 ? `${data.lyrics.substring(0, 1599)}...\n[Lirik telah dipotong]` : data.lyrics;
+    if (data.lyrics) {
+      const lirik = data.lyrics.length > 1599 ? data.lyrics.substring(0, 1599) : data.lyrics;
       twiml.message(lirik);
     } else {
       twiml.message('Lirik tidak ditemukan.');
     }
-  } catch (error) {
-    console.error('Error fetching lyrics:', error);
+  } catch (err) {
+    console.error('Error:', err.message);
     twiml.message('Terjadi kesalahan.');
   }
 
-  res.set('Content-Type', 'text/xml');
-  res.send(twiml.toString());
+  res.setHeader('Content-Type', 'text/xml');
+  res.status(200).send(twiml.toString());
 };
