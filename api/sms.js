@@ -26,33 +26,8 @@ app.post('/sms', async (req, res) => {
       }
     }
 
-    else if (message.toLowerCase().startsWith('/tiktok')) {
-      const url = message.slice(7).trim();
-      if (!url.includes('tiktok.com')) {
-        twiml.message('Link TikTok tidak valid.');
-      } else {
-        const response = await fetch('https://snaptik.app/abc2', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({ url }),
-        });
-
-        const html = await response.text();
-        const $ = cheerio.load(html);
-        const downloadLink = $('a[href*="/download"]').first().attr('href');
-
-        if (downloadLink) {
-          twiml.message(`Video:\n${downloadLink}`);
-        } else {
-          twiml.message('Gagal mengambil video. Coba lagi atau gunakan link TikTok publik.');
-        }
-      }
-    }
-
     else {
-      twiml.message('Perintah tidak dikenali.\nContoh:\n/lirik Coldplay - Yellow\n/tiktok [link]');
+      twiml.message('Perintah tidak dikenali.\nContoh:\n/lirik Coldplay - Yellow');
     }
   } catch (err) {
     console.error('Error:', err);
