@@ -1,46 +1,40 @@
+const express = require('express');
+const bodyParser = require('body-parser');
 const { MessagingResponse } = require('twilio').twiml;
 const fetch = require('node-fetch');
 
-module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    return res.status(405).send('Method Not Allowed');
-  }
+const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
 
-  let parsed = {};
-
-  // Handle body format dari Vercel (raw x-www-form-urlencoded)
-  if (typeof req.body === 'string') {
-    parsed = Object.fromEntries(new URLSearchParams(req.body));
-  } else {
-    parsed = req.body;
-  }
-
-  const body = parsed.Body || '';
+app.post('/sms', async (req, res) => {
   const twiml = new MessagingResponse();
+  const message = req.body.Body || '';
 
   try {
-    if (!body.includes('-')) {
+    if (!message.includes('-')) {
       twiml.message('Format salah! Contoh: Coldplay - Yellow');
-      return res.status(200).send(twiml.toString());
+      res.type('text/xml');
+      return res.send(twiml.toString());
     }
 
-    const [artist, title] = body.split('-').map(s => s.trim());
-    const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
-
-    const response = await fetch(url);
+    const [artist, title] = message.split('-').map(x => x.trim());
+    const apiURL = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
+    const response = await fetch(apiURL);
     const data = await response.json();
 
     if (data.lyrics) {
-      const lirik = data.lyrics.length > 1599 ? data.lyrics.substring(0, 1599) : data.lyrics;
-      twiml.message(lirik);
+      const lyrics = data.lyrics.length > 1599 ? data.lyrics.substring(0, 1599) : data.lyrics;
+      twiml.message(lyrics);
     } else {
       twiml.message('Lirik tidak ditemukan.');
     }
   } catch (err) {
-    console.error('Error:', err.message);
-    twiml.message('Terjadi kesalahan.');
+    console.error('Error:', err);
+    twiml.message('Terjadi kesalahan saat mengambil lirik.');
   }
 
-  res.setHeader('Content-Type', 'text/xml');
-  res.status(200).send(twiml.toString());
-};
+  res.type('text/xml');
+  res.send(twiml.toString());
+});
+
+app.listen(3000, () => console.log('Server berjalan di http://localhost:3000'));
